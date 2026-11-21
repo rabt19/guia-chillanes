@@ -2,9 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
-import crypto from 'node:crypto';
 import { q, pool } from './db.js';
 
 const app = express();
@@ -13,11 +10,6 @@ app.use(express.json());
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const PORT = process.env.PORT || 4002;
-const UPLOAD_DIR = '/data/uploads';
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-// fotos servidas de forma estática (el gateway las expone en /api/negocios/uploads/..)
-app.use('/uploads', express.static(UPLOAD_DIR));
 
 // ---- auth: solo admin puede escribir ---------------------------------------
 function admin(req, res, next) {
@@ -31,20 +23,25 @@ function admin(req, res, next) {
   } catch { return res.status(401).json({ error: 'Sesión inválida' }); }
 }
 
-const storage = multer.diskStorage({
-  destination: (_r, _f, cb) => cb(null, UPLOAD_DIR),
-  filename: (_r, file, cb) => {
-    const ext = (path.extname(file.originalname) || '.jpg').toLowerCase().slice(0, 5);
-    cb(null, crypto.randomUUID() + ext);
-  },
-});
+// las fotos se guardan en la base (bytea) para que persistan en hosting sin disco
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 },
   fileFilter: (_r, file, cb) => cb(null, /image\/(jpe?g|png|webp|gif)/.test(file.mimetype)),
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'negocios' }));
+
+// servir una foto por id (pública)
+app.get('/foto/:id', async (req, res) => {
+  try {
+    const { rows } = await q('SELECT mime, datos FROM negocio_fotos WHERE id=$1', [req.params.id]);
+    if (!rows[0]) return res.status(404).end();
+    res.set('Content-Type', rows[0].mime);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(rows[0].datos);
+  } catch { res.status(404).end(); }
+});
 
 // ---- categorías (lectura pública) ------------------------------------------
 app.get('/categorias', async (_req, res) => {
@@ -104,10 +101,12 @@ app.delete('/negocios/:id', admin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// subir foto -> devuelve la ruta pública para guardar en foto_url
-app.post('/upload', admin, upload.single('foto'), (req, res) => {
+// subir foto -> la guarda en la base y devuelve la ruta pública para foto_url
+app.post('/upload', admin, upload.single('foto'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Imagen inválida (jpg, png, webp; máx 4MB)' });
-  res.json({ foto_url: `/api/negocios/uploads/${req.file.filename}` });
+  const { rows } = await q('INSERT INTO negocio_fotos (mime, datos) VALUES ($1,$2) RETURNING id',
+    [req.file.mimetype, req.file.buffer]);
+  res.json({ foto_url: `/api/negocios/foto/${rows[0].id}` });
 });
 
 // ---- categorías: alta/edición (solo admin) ---------------------------------

@@ -51,9 +51,9 @@ npm run dev                     # abre http://localhost:5173
 
 ## Respaldo
 
-Todo el estado vive en dos volúmenes de Docker:
+Todo el estado vive en el volumen de Docker:
 - `pgdata` → la base de datos.
-- `uploads` → las fotos.
+- las **fotos** se guardan dentro de la base (tabla `negocio_fotos`), así que el respaldo de la base las incluye.
 
 Respaldo de la base:
 ```bash

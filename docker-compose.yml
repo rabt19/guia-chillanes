@@ -43,8 +43,6 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${NEGOCIOS_PORT}
-    volumes:
-      - uploads:/data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,4 +75,3 @@ services:
 
 volumes:
   pgdata:
-  uploads:

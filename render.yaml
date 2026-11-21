@@ -51,10 +51,6 @@ services:
     rootDir: services/negocios-service
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
-    disk:
-      name: uploads
-      mountPath: /data/uploads
-      sizeGB: 1
     envVars:
       - fromGroup: guia-secrets
       - key: DATABASE_URL

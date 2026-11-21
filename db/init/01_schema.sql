@@ -57,6 +57,16 @@ CREATE INDEX IF NOT EXISTS ix_negocios_categoria ON negocios(id_categoria);
 CREATE INDEX IF NOT EXISTS ix_negocios_estado    ON negocios(estado);
 
 -- ----------------------------------------------------------------------------
+-- Fotos (se guardan en la base para que persistan en hosting sin disco)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS negocio_fotos (
+    id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mime   VARCHAR(40) NOT NULL,
+    datos  BYTEA       NOT NULL,
+    creado TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ----------------------------------------------------------------------------
 -- Turnos de transporte (cooperativas: ruta, horarios, contacto)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS transporte_turnos (
