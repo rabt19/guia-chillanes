@@ -89,8 +89,8 @@ services:
       # URLs PÚBLICAS de cada servicio (en Render free, las llamadas públicas
       # sí despiertan al servicio dormido; las internas no).
       - key: AUTH_URL
-        fromService: { type: web, name: auth-service, property: host }
+        value: https://auth-service-w9iz.onrender.com
       - key: NEGOCIOS_URL
-        fromService: { type: web, name: negocios-service, property: host }
+        value: https://negocios-service.onrender.com
       - key: TRANSPORTE_URL
-        fromService: { type: web, name: transporte-service, property: host }
+        value: https://transporte-service.onrender.com
