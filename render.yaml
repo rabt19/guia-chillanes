@@ -1,0 +1,98 @@
+# ============================================================================
+# Blueprint de Render — levanta el backend completo (base + 4 microservicios).
+# En Render: New > Blueprint > conecta este repo. Render lee este archivo.
+# Luego pon ADMIN_EMAIL y ADMIN_PASSWORD (marcados sync:false) en el panel.
+# Nota: el plan free duerme tras 15 min de inactividad (primer acceso ~1 min).
+# ============================================================================
+databases:
+  - name: guia-db
+    plan: free
+    databaseName: guia_chillanes
+    user: guia
+
+# Secreto JWT compartido por todos los servicios (deben usar el mismo)
+envVarGroups:
+  - name: guia-secrets
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+
+services:
+  # --- auth (registro, login, 2FA) + aplica el esquema al arrancar ----------
+  - type: web
+    name: auth-service
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: services/auth-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: guia-secrets
+      - key: DATABASE_URL
+        fromDatabase: { name: guia-db, property: connectionString }
+      - key: TOTP_ISSUER
+        value: Guia Chillanes
+      - key: ADMIN_NOMBRE
+        value: Rene Barragan
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PORT
+        value: "4001"
+
+  # --- negocios (categorías, negocios, fotos) -------------------------------
+  - type: web
+    name: negocios-service
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: services/negocios-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    disk:
+      name: uploads
+      mountPath: /data/uploads
+      sizeGB: 1
+    envVars:
+      - fromGroup: guia-secrets
+      - key: DATABASE_URL
+        fromDatabase: { name: guia-db, property: connectionString }
+      - key: PORT
+        value: "4002"
+
+  # --- transporte (turnos) --------------------------------------------------
+  - type: web
+    name: transporte-service
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: services/transporte-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: guia-secrets
+      - key: DATABASE_URL
+        fromDatabase: { name: guia-db, property: connectionString }
+      - key: PORT
+        value: "4003"
+
+  # --- gateway (entrada pública; lo usa el frontend) ------------------------
+  - type: web
+    name: gateway
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: services/gateway
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: AUTH_URL
+        value: http://auth-service:4001
+      - key: NEGOCIOS_URL
+        value: http://negocios-service:4002
+      - key: TRANSPORTE_URL
+        value: http://transporte-service:4003

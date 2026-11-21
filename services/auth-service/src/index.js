@@ -4,7 +4,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { q, pool } from './db.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 app.use(cors());
@@ -141,12 +146,22 @@ async function bootstrapAdmin() {
   console.log('Administrador creado:', email);
 }
 
+// aplica el esquema (idempotente) — necesario en bases gestionadas donde no corre docker-initdb
+async function migrar() {
+  try {
+    const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+    await pool.query(sql);
+    console.log('Esquema aplicado/verificado');
+  } catch (e) { console.error('migrar', e.message); }
+}
+
 async function start() {
   // espera activa simple a que Postgres esté listo
   for (let i = 0; i < 20; i++) {
     try { await pool.query('SELECT 1'); break; }
     catch { await new Promise(r => setTimeout(r, 1500)); }
   }
+  await migrar();
   await bootstrapAdmin().catch(e => console.error('bootstrapAdmin', e.message));
   app.listen(PORT, () => console.log(`auth-service en ${PORT}`));
 }

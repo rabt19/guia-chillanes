@@ -86,7 +86,10 @@ INSERT INTO categorias (nombre, slug, icono, orden) VALUES
     ('Servicios',             'servicios',     'wrench',   7)
 ON CONFLICT (slug) DO NOTHING;
 
-INSERT INTO transporte_turnos (cooperativa, origen, destino, hora, dias, nota) VALUES
-    ('Coop. Flota Bolívar', 'Guaranda', 'Babahoyo', '06:00', 'L-D', 'Pasa por Chillanes'),
-    ('Coop. Flota Bolívar', 'Guaranda', 'Babahoyo', '14:00', 'L-D', 'Pasa por Chillanes')
-ON CONFLICT DO NOTHING;
+-- turnos de ejemplo: solo la primera vez (la tabla no tiene índice único)
+INSERT INTO transporte_turnos (cooperativa, origen, destino, hora, dias, nota)
+SELECT * FROM (VALUES
+    ('Coop. Flota Bolívar', 'Guaranda', 'Babahoyo', '06:00'::time, 'L-D', 'Pasa por Chillanes'),
+    ('Coop. Flota Bolívar', 'Guaranda', 'Babahoyo', '14:00'::time, 'L-D', 'Pasa por Chillanes')
+) AS v(cooperativa, origen, destino, hora, dias, nota)
+WHERE NOT EXISTS (SELECT 1 FROM transporte_turnos);
