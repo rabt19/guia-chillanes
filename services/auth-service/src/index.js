@@ -139,11 +139,17 @@ async function bootstrapAdmin() {
   const password = process.env.ADMIN_PASSWORD || '';
   const nombre = process.env.ADMIN_NOMBRE || 'Administrador';
   if (!email || !password) return;
-  const { rows } = await q('SELECT id FROM usuarios WHERE email=$1', [email]);
-  if (rows[0]) { await q("UPDATE usuarios SET rol='admin' WHERE email=$1", [email]); return; }
+  // La clave de ADMIN_PASSWORD es la fuente de verdad: si el admin ya existe,
+  // se sincroniza su contraseña (así cambiarla en Render sí tiene efecto).
   const hash = await bcrypt.hash(password, 12);
-  await q('INSERT INTO usuarios (nombre,email,password_hash,rol) VALUES ($1,$2,$3,$4)', [nombre, email, hash, 'admin']);
-  console.log('Administrador creado:', email);
+  const { rows } = await q('SELECT id FROM usuarios WHERE email=$1', [email]);
+  if (rows[0]) {
+    await q("UPDATE usuarios SET rol='admin', password_hash=$2 WHERE email=$1", [email, hash]);
+    console.log('Administrador actualizado (clave sincronizada con ADMIN_PASSWORD):', email);
+  } else {
+    await q('INSERT INTO usuarios (nombre,email,password_hash,rol) VALUES ($1,$2,$3,$4)', [nombre, email, hash, 'admin']);
+    console.log('Administrador creado:', email);
+  }
 }
 
 // aplica el esquema (idempotente) — necesario en bases gestionadas donde no corre docker-initdb
