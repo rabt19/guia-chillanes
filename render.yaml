@@ -86,9 +86,11 @@ services:
     envVars:
       - key: PORT
         value: "8080"
+      # URLs PÚBLICAS de cada servicio (en Render free, las llamadas públicas
+      # sí despiertan al servicio dormido; las internas no).
       - key: AUTH_URL
-        value: http://auth-service:4001
+        fromService: { type: web, name: auth-service, property: host }
       - key: NEGOCIOS_URL
-        value: http://negocios-service:4002
+        fromService: { type: web, name: negocios-service, property: host }
       - key: TRANSPORTE_URL
-        value: http://transporte-service:4003
+        fromService: { type: web, name: transporte-service, property: host }
