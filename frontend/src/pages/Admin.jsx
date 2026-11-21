@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api, fotoUrl } from '../api.js';
 import { Loader, Vacio } from '../components/ui.jsx';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Plus, Trash2, Upload, Copy } from 'lucide-react';
 
 export default function Admin() {
   const [tab, setTab] = useState('negocios');
@@ -105,10 +105,26 @@ function Turnos() {
   const cargar = () => api.turnos('').then(setTurnos).catch(() => setTurnos([]));
   useEffect(() => { cargar(); }, []);
 
+  const horaRef = useRef(null);
+
   async function crear(e) {
     e.preventDefault(); setErr(''); setMsg('');
-    try { await api.crearTurno(f); setF(TVACIO); setMsg('Turno agregado.'); cargar(); }
-    catch (e) { setErr(e.message); }
+    try {
+      await api.crearTurno(f);
+      // mantiene la ruta y limpia solo la hora, para agregar varias horas seguidas
+      setF({ ...f, hora: '' });
+      setMsg('Turno agregado. Cambia la hora y agrega otro.');
+      cargar();
+      horaRef.current?.focus();
+    } catch (e) { setErr(e.message); }
+  }
+  // copia un turno al formulario con la hora en blanco (clonar)
+  function clonar(t) {
+    setF({ cooperativa: t.cooperativa, origen: t.origen, destino: t.destino, hora: '',
+           dias: t.dias || 'L-D', telefono: t.telefono || '', whatsapp: t.whatsapp || '', nota: t.nota || '' });
+    setMsg(''); setErr('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => horaRef.current?.focus(), 300);
   }
   async function borrar(id) { if (confirm('¿Quitar turno?')) { await api.borrarTurno(id); cargar(); } }
 
@@ -121,7 +137,7 @@ function Turnos() {
         <div className="field"><label>Cooperativa</label><input value={f.cooperativa} onChange={set('cooperativa')} required /></div>
         <div className="field"><label>Origen</label><input value={f.origen} onChange={set('origen')} required /></div>
         <div className="field"><label>Destino</label><input value={f.destino} onChange={set('destino')} required /></div>
-        <div className="field"><label>Hora</label><input type="time" value={f.hora} onChange={set('hora')} required /></div>
+        <div className="field"><label>Hora</label><input ref={horaRef} type="time" value={f.hora} onChange={set('hora')} required /></div>
         <div className="field"><label>Días</label><input value={f.dias} onChange={set('dias')} placeholder="L-D" /></div>
         <div className="field"><label>Teléfono</label><input value={f.telefono} onChange={set('telefono')} /></div>
         <div className="field"><label>WhatsApp</label><input value={f.whatsapp} onChange={set('whatsapp')} /></div>
@@ -136,6 +152,7 @@ function Turnos() {
             <div style={{ fontWeight: 700 }}>{t.origen} → {t.destino}</div>
             <div className="muted">{t.cooperativa} · {t.dias}</div>
           </div>
+          <button className="btn" title="Clonar (misma ruta, nueva hora)" onClick={() => clonar(t)}><Copy size={16} /></button>
           <button className="btn" onClick={() => borrar(t.id)}><Trash2 size={16} /></button>
         </div>
       ))}
